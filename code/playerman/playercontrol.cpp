@@ -9,55 +9,23 @@
 
 /*
  * $Logfile: /Freespace2/code/Playerman/PlayerControl.cpp $
- * $Revision: 2.54 $
- * $Date: 2007-12-22 09:36:17 $
+ * $Revision: 2.43.2.5 $
+ * $Date: 2007-12-28 02:10:37 $
  * $Author: Backslash $
  *
  * Routines to deal with player ship movement
  *
  * $Log: not supported by cvs2svn $
- * Revision 2.53  2007/11/23 23:49:35  wmcoolmon
- * - Asteroid, debris, and ship collision damage type support
- * - Scripting system variable-setting optimizations
- * - Standardize override style
- * - Reinstate "Self" variable for HUD
- * - Automatic drawString moving-to-next-line
- * - Visible subsystem name can be changed through scripting; will not be changed in the log
- * - Fix many for-loop signed/unsigned warnings related to size()
- * - Asteroid, debris scripting collision handling
- * - Many, many additional Lua functions and variables
- * - Fix the dreaded random-Lua-parse-crash bug
- * - Fix struct array malf-ups due to flag_def_list change
- *
- * Revision 2.52  2007/07/23 22:45:00  Kazan
- * Resolve Mantis #1440
- *
- * Revision 2.51  2007/06/04 00:04:20  Backslash
- * Backslash's HEAD-only controls commit:
- * -Lateral thruster axes
- * -Slide_when_pressed
- * -Placeholders for glide_when_pressed and more controls, to give us a little breathing room while we wait for the real pilot file code
- *
- * Revision 2.50  2007/04/30 21:30:31  Backslash
- * Backslash's big Gliding commit!  Gliding now obeys physics and collisions, and can be modified with thrusters.  Also has a adjustable maximum speed cap.
- * Added a simple glide indicator.  Fixed a few things involving fspeed vs speed during gliding, including maneuvering thrusters and main engine noise.
- *
- * Revision 2.49  2007/03/11 22:55:32  karajorma
+ * Revision 2.43.2.4  2007/03/11 22:54:02  karajorma
  * Turn off afterburner controls when player isn't in control
  *
- * Revision 2.48  2006/09/08 06:20:15  taylor
+ * Revision 2.43.2.3  2006/09/08 06:14:44  taylor
  * fix things that strict compiling balked at (from compiling with -ansi and -pedantic)
  *
- * Revision 2.47  2006/08/20 00:51:06  taylor
+ * Revision 2.43.2.2  2006/08/19 04:38:47  taylor
  * maybe optimize the (PI/2), (PI*2) and (RAND_MAX/2) stuff a little bit
  *
- * Revision 2.46  2006/08/01 04:26:02  Kazan
- * commented out glide_while_pressed changes until taylor deems them safe
- *
- * Revision 2.45  2006/07/31 23:57:48  Kazan
- * glide while pressed
- *
- * Revision 2.44  2006/07/28 02:40:07  taylor
+ * Revision 2.43.2.1  2006/07/28 02:45:34  taylor
  * when in external (non-control) view be sure to not include time compression speed in camera movement
  *
  * Revision 2.43  2006/04/05 16:14:04  karajorma
@@ -646,10 +614,12 @@
 #include "io/joy_ff.h"
 #include "io/mouse.h"
 #include "io/timer.h"
+#include "io/trackir.h"
 #include "object/object.h"
 #include "hud/hud.h"
 #include "hud/hudtargetbox.h"
 #include "ship/ship.h"
+#include "ship/shipfx.h"
 #include "freespace2/freespace.h"
 #include "gamesnd/gamesnd.h"
 #include "gamesequence/gamesequence.h"
@@ -685,6 +655,9 @@ int		Player_use_ai = 0;
 
 physics_info Descent_physics;			// used when we want to control the player like the descent ship
 
+angles chase_slew_angles;
+int view_centering = 0;
+
 ////////////////////////////////////////////////////////////
 // Module data
 ////////////////////////////////////////////////////////////
@@ -698,74 +671,66 @@ static int Player_all_alone_msg_inited=0;	// flag used for initializing a player
 void playercontrol_read_stick(int *axis, float frame_time);
 void player_set_padlock_state();
 
-//	Slew angles chase towards zero like they're on a spring.
+//	Slew angles chase towards a value like they're on a spring.
 //	When furthest away, move fastest.
 //	Minimum speed set so that doesn't take too long.
-//	When gets close, clamps to zero.
-void chase_angles_to_zero(angles *ap)
+//	When gets close, clamps to the value.
+void chase_angles_to_value(angles *ap, angles *bp, int scale)
 {
-	float	k1, k2;
-	float	sk;
+	float sk;
+	angles delta;
 
 	//	Make sure we actually need to do all this math.
-	if ((ap->p == 0.0f) && (ap->h == 0.0f))
+	if ((ap->p == bp->p) && (ap->h == bp->h))
 		return;
 
-	//	This is what we'll scale each value by.
-	sk = 1.0f - 2*flFrametime;
+	sk = 1.0f - scale*flFrametime;
 
-	//	These are the amounts that will be subtracted from pitch and heading.
-	//	They are only needed to make sure we aren't moving too slowly.
-	k1 = fl_abs(ap->p * (1.0f - sk));
-	k2 = fl_abs(ap->h * (1.0f - sk));
+	delta.p = ap->p - bp->p;
+	delta.h = ap->h - bp->h;
 
-	//	See if the larger dimension of movement is too small.
-	// If so, boost amount of movement in both dimensions.
-	if (k1 >= k2) {
-		if (k1 < flFrametime)
-			sk = 1.0f - (1.0f - sk) * flFrametime/k1;
-	} else if (k2 > k1) {
-		if (k2 < flFrametime)
-			sk = 1.0f - (1.0f - sk) * flFrametime/k2;
-	}
-
-	//	It's possible we made the scale factor negative above.
-	if (sk < 0.0f)
-		sk = 0.0f;
-
-	ap->p *= sk;
-	ap->h *= sk;
+	ap->p = ap->p - delta.p * (1.0f - sk);
+	ap->h = ap->h - delta.h * (1.0f - sk);
 
 	//	If we're very close, put ourselves at goal.
-	if ((fl_abs(ap->p) < 0.005f) && (fl_abs(ap->h) < 0.005f)) {
-		ap->p = 0.0f;
-		ap->h = 0.0f;
+	if ((fl_abs(delta.p) < 0.005f) && (fl_abs(delta.h) < 0.005f)) {
+		ap->p = bp->p;
+		ap->h = bp->h;
 	}
-
-	//	Update Viewer_mode based on whether we're looking dead ahead.	
-	if ((ap->p == 0.0f) && (ap->b == 0.0f) && (ap->h == 0.0f))
-		Viewer_mode &= ~VM_SLEWED;
-	else
-		Viewer_mode |= VM_SLEWED;
-
 }
 
 angles	Viewer_slew_angles_delta;
 angles	Viewer_external_angles_delta;
 
-void view_modify(angles *ma, angles *da, float minv, float maxv, int slew, float frame_time)
+void view_modify(angles *ma, angles *da, float max_p, float max_h, float frame_time)
 {
 	int axis[NUM_JOY_AXIS_ACTIONS];
-	float	t;
+	float	t = 0;
+	float   u = 0;
+	vec3d trans;
 
-	if ( (!slew) && (Viewer_mode & VM_EXTERNAL) && (Viewer_mode & VM_EXTERNAL_CAMERA_LOCKED) ) {
-		return;
-	}
+	if ( Viewer_mode & VM_EXTERNAL) {
+		if (! (Viewer_mode & VM_EXTERNAL_CAMERA_LOCKED) ) {
+			t = t + (check_control_timef(YAW_LEFT) - check_control_timef(YAW_RIGHT));
+			u = u + (check_control_timef(PITCH_BACK) - check_control_timef(PITCH_FORWARD));
+		} else {
+			return;
+		}
+	} else if (trackir_enabled) {
+		TrackIR_Query();
+		ma->h = -PI2*(TrackIR_GetYaw());
+		ma->p = PI2*(TrackIR_GetPitch());
 
-	if ( Viewer_mode & VM_EXTERNAL ) {
-		t = (check_control_timef(YAW_LEFT) - check_control_timef(YAW_RIGHT)) / 16.0f;
+		trans.xyz.x = -0.4f*TrackIR_GetX();
+		trans.xyz.y = 0.4f*TrackIR_GetY();
+		trans.xyz.z = -TrackIR_GetZ();
+
+		vm_vec_unrotate(&leaning_position,&trans,&Eye_matrix);
 	} else {
-		t = (check_control_timef(YAW_RIGHT) - check_control_timef(YAW_LEFT)) / 16.0f;
+		// View slewing commands commented out until we can safely add more commands in the pilot code.
+
+		/*t = (check_control_timef(VIEW_RIGHT) - check_control_timef(VIEW_LEFT)) / 16.0f;
+		u = (check_control_timef(VIEW_DOWN) - check_control_timef(VIEW_UP)) / 16.0f;*/
 	}
 
 	if (t != 0.0f)
@@ -773,9 +738,8 @@ void view_modify(angles *ma, angles *da, float minv, float maxv, int slew, float
 	else
 		da->h = 0.0f;
 
-	t = (check_control_timef(PITCH_FORWARD) - check_control_timef(PITCH_BACK)) / 16.0f;
-	if (t != 0.0f)
-		da->p += t;
+	if (u != 0.0f)
+		da->p += u;
 	else
 		da->p = 0.0f;
 			
@@ -783,17 +747,11 @@ void view_modify(angles *ma, angles *da, float minv, float maxv, int slew, float
 
 	playercontrol_read_stick(axis, frame_time);
 
-	if ( Viewer_mode & VM_EXTERNAL ) {
-		// check the heading on the x axis
+	if (( Viewer_mode & VM_EXTERNAL ) && !(Viewer_mode & VM_EXTERNAL_CAMERA_LOCKED)) {
+		// check the heading on the x and y axes
 		da->h -= f2fl( axis[0] );
-
-	} else {
-		// check the heading on the x axis
-		da->h += f2fl( axis[0] );
-	}
-
-	// check the pitch on the y axis
-	da->p -= f2fl( axis[1] );
+		da->p -= f2fl( axis[1] );
+	} 
 
 	if (da->h > 1.0f)
 		da->h = 1.0f;
@@ -807,9 +765,9 @@ void view_modify(angles *ma, angles *da, float minv, float maxv, int slew, float
 
 	if ( (Game_time_compression >= F1_0) && !(Viewer_mode & VM_EXTERNAL) )
 	{
-		ma->p += da->p * flFrametime;
-		ma->b += da->b * flFrametime;
-		ma->h += da->h * flFrametime;
+		ma->p += 2*da->p * flFrametime;
+		ma->b += 2*da->b * flFrametime;
+		ma->h += 2*da->h * flFrametime;
 	}
 	else
 	{
@@ -820,33 +778,89 @@ void view_modify(angles *ma, angles *da, float minv, float maxv, int slew, float
 		ma->h += da->h * flRealframetime;
 	}
 
-	if (ma->p > maxv)
-		ma->p = maxv;
-	else if (ma->p < minv)
-		ma->p = minv;
+	if (ma->p > max_p)
+		ma->p = max_p;
+	else if (ma->p < -max_p)
+		ma->p = -max_p;
 
-	if (ma->h > maxv)
-		ma->h = maxv;
-	else if (ma->h < minv)
-		ma->h = minv;
+	if (ma->h > max_h)
+		ma->h = max_h;
+	else if (ma->h < -max_h)
+		ma->h = -max_h;
 }
 
 void do_view_track_target(float frame_time)
 {
-	//vm_vec_delta_ang(
+	vec3d view_vector;
+	vec3d targetpos_rotated;
+	vec3d playerpos_rotated;
+	vec3d forwardvec_rotated;
+	vec3d target_pos;
+	angles view_angles;
+	angles forward_angles;
 
-	Viewer_mode &= ~VM_SLEWED;
+	if ((Player_ai->target_objnum == -1) || (Viewer_mode & VM_OTHER_SHIP)) {
+	 // If the object isn't targeted or we're viewing from the target's perspective, center the view and turn off target padlock
+	 // because the target won't be at the angle we've calculated from the player's perspective.
+		Viewer_mode ^= VM_TRACK;
+		chase_slew_angles.p = 0.0f;
+		chase_slew_angles.h = 0.0f;
+		return;
+	}
+
+	object * targetp = &Objects[Player_ai->target_objnum];
+
+	// check to see if there is even a current target. if not, switch off the 
+	// target padlock tracking flag, make the camera slew to the center,
+	// and exit the procedure
+	if ( targetp == &obj_used_list ) {
+		Viewer_mode ^= VM_TRACK;
+		chase_slew_angles.p = 0.0f;
+		chase_slew_angles.h = 0.0f;
+		return;
+	}
+
+	// look at a subsystem if there is one.
+	if ( Player_ai->targeted_subsys != NULL ) {
+		get_subsystem_world_pos(targetp, Player_ai->targeted_subsys, &target_pos);
+
+	} else {
+		target_pos = targetp->pos;
+	}
+
+	//vm_vec_normalized_dir(&dir_to_target, &targetp->pos, &Player_obj->pos);
+	vm_vec_rotate(&targetpos_rotated, &target_pos, &Player_obj->orient);
+	vm_vec_rotate(&playerpos_rotated, &Player_obj->pos, &Player_obj->orient);
+	vm_vec_rotate(&forwardvec_rotated, &Player_obj->orient.vec.fvec, &Player_obj->orient);
+
+	vm_vec_normalized_dir(&view_vector,&targetpos_rotated,&playerpos_rotated);
+	vm_extract_angles_vector(&view_angles,&view_vector);
+	vm_extract_angles_vector(&forward_angles,&forwardvec_rotated);
+	chase_slew_angles.h = forward_angles.h - view_angles.h;
+	chase_slew_angles.p = -(forward_angles.p - view_angles.p);
+
+	// the gimbal limits of the player's virtual neck.
+	// These nested ifs prevent the player from looking up and 
+	// down beyond 90 degree angles.
+	if (chase_slew_angles.p > PI_2)
+		chase_slew_angles.p = PI_2;
+	else if (chase_slew_angles.p < -PI_2)
+		chase_slew_angles.p = -PI_2;
+
+	// prevents the player from looking completely behind himself; just over his shoulder
+	if (chase_slew_angles.h > PI2/3)
+		chase_slew_angles.h = PI2/3;
+	else if (chase_slew_angles.h < -PI2/3)
+		chase_slew_angles.h = -PI2/3;
 }
+
 
 //	When PAD0 is pressed, keypad controls viewer direction slewing.
 void do_view_slew(float frame_time)
 {
-	view_modify(&Viewer_slew_angles, &Viewer_slew_angles_delta, -PI/3, PI/3, 1, frame_time);
-
-	if ((Viewer_slew_angles.p == 0.0f) && (Viewer_slew_angles.b == 0.0f) && (Viewer_slew_angles.h == 0.0f))
-		Viewer_mode &= ~VM_SLEWED;
-	else
-		Viewer_mode |= VM_SLEWED;
+	//angles view_slew_angles;
+	view_modify(&chase_slew_angles, &Viewer_slew_angles_delta, PI_2, PI2/3, frame_time);
+	//chase_angles_to_value(&Viewer_slew_angles, &chase_slew_angles, 15);
 }
 
 void do_view_chase(float frame_time)
@@ -876,7 +890,7 @@ void do_view_external(float frame_time)
 {
 	float	t;
 
-	view_modify(&Viewer_external_info.angles, &Viewer_external_angles_delta, -PI2, PI2, 0, frame_time);
+	view_modify(&Viewer_external_info.angles, &Viewer_external_angles_delta, PI2, PI2, frame_time);
 
 	//	Process centering key.
 	if (check_control_timef(VIEW_CENTER)) {
@@ -931,7 +945,7 @@ void player_control_reset_ci( control_info *ci )
 // because we only want to read it at a certain rate,
 // since it takes time.
 
-static int Joystick_saved_reading[NUM_JOY_AXIS_ACTIONS];
+static int Joystick_saved_reading[JOY_NUM_AXES];
 static int Joystick_last_reading = -1;
 
 void playercontrol_read_stick(int *axis, float frame_time)
@@ -948,7 +962,7 @@ void playercontrol_read_stick(int *axis, float frame_time)
 
 	if ( (Joystick_last_reading == -1)  || timestamp_elapsed(Joystick_last_reading) ) {
 		// Read the stick
-		control_get_axes_readings(Joystick_saved_reading);
+		control_get_axes_readings(&Joystick_saved_reading[0], &Joystick_saved_reading[1], &Joystick_saved_reading[2], &Joystick_saved_reading[3], &Joystick_saved_reading[4]);
 		Joystick_last_reading = timestamp( 1000/10 );	// Read 10x per second, like we did in Descent.
 	}
 
@@ -988,40 +1002,51 @@ void playercontrol_read_stick(int *axis, float frame_time)
 void read_keyboard_controls( control_info * ci, float frame_time, physics_info *pi )
 {
 	float kh=0.0f, scaled, newspeed, delta, oldspeed;
-	int axis[NUM_JOY_AXIS_ACTIONS], ignore_pitch, slew_active=0;
+	int axis[NUM_JOY_AXIS_ACTIONS], ignore_pitch, slew_active=1;
 	static int afterburner_last = 0;
 	static float analog_throttle_last = 9e9f;
 	static int override_analog_throttle = 0; 
 	static float savedspeed = ci->forward_cruise_percent;	//Backslash
 	int ok_to_read_ci_pitch_yaw=1;
+	int centering_speed = 7; // the scale speed in which the camera will smoothly center when the player presses Center View
 
 	oldspeed = ci->forward_cruise_percent;
 	player_control_reset_ci( ci );
-	
-	if ( check_control(VIEW_TRACK_TARGET) ) {
-		do_view_track_target(frame_time);
-		slew_active = 1;
-	}
-
-	if ( check_control(VIEW_SLEW) ) {
-		do_view_slew(frame_time);
-		slew_active=1;
-	}
 
 	if ( Viewer_mode & VM_EXTERNAL ) {
 		control_used(VIEW_EXTERNAL);
 		if ( !(Viewer_mode & VM_EXTERNAL_CAMERA_LOCKED) ) {
 			ok_to_read_ci_pitch_yaw=0;
-			slew_active=0;
 		}
 
 		do_view_external(frame_time);
 		do_thrust_keys(ci);
-	}
+		slew_active=0;
+	} else if ( Viewer_mode & VM_CHASE ) {
+		do_view_chase(frame_time);
+		slew_active=0;
+	} else { // We're in the cockpit. 
+		if (view_centering) { 
+			// If we're centering the view, check to see if we're actually centered and bypass any view modifications
+			// until the view has finally been centered.
+			if ((Viewer_slew_angles.h == 0.0f) && (Viewer_slew_angles.p == 0.0f)) {
+				view_centering = 0; // if the view has been centered, allow the player to freelook again.
+			}
+			slew_active = 0;
+		} else if ( Viewer_mode & VM_TRACK ) { // Player's vision will track current target.
+			do_view_track_target(frame_time);
+		} else {
+			// The Center View command check is here because 
+			// we don't want the player centering the view in target padlock mode
+			if (check_control_timef(VIEW_CENTER) && !view_centering) { 
+				view_centering = 1; 
+				slew_active = 0;
+			}
+			do_view_slew(frame_time);
 
-	if ( !slew_active ) {
-		if ( Viewer_mode & VM_CHASE ) {
-			do_view_chase(frame_time);
+			// Orthogonal padlock views moved here in order to get the springy chase effect when transitioning.
+			player_set_padlock_state();
+
 		}
 	}
 	
@@ -1031,10 +1056,10 @@ void read_keyboard_controls( control_info * ci, float frame_time, physics_info *
 		if ( check_control(BANK_WHEN_PRESSED) ) {
 			ci->bank = check_control_timef(BANK_LEFT) + check_control_timef(YAW_LEFT) - check_control_timef(YAW_RIGHT) - check_control_timef(BANK_RIGHT);
 			ci->heading = 0.0f;
-		} else if ( check_control(SLIDE_WHEN_PRESSED) ) {
+/*		} else if ( check_control(SLIDE_WHEN_PRESSED) ) {
 			ci->sideways = check_control_timef(RIGHT_SLIDE_THRUST) + check_control_timef(YAW_RIGHT) - check_control_timef(LEFT_SLIDE_THRUST) - check_control_timef(YAW_LEFT);
 			ci->heading = 0.0f;
-
+*/
 		} else {
 			kh = (check_control_timef(YAW_RIGHT) - check_control_timef(YAW_LEFT)) / 8.0f;
 			if (kh == 0.0f) {
@@ -1054,10 +1079,10 @@ void read_keyboard_controls( control_info * ci, float frame_time, physics_info *
 
 		ci->heading += kh;
 
-		if ( check_control(SLIDE_WHEN_PRESSED) ) {
+/*		if ( check_control(SLIDE_WHEN_PRESSED) ) {
 			ci->vertical = check_control_timef(UP_SLIDE_THRUST) + check_control_timef(PITCH_FORWARD) - check_control_timef(DOWN_SLIDE_THRUST) - check_control_timef(PITCH_BACK);
 			ci->pitch = 0.0f;
-		} else {
+		} else {*/
 			kh = (check_control_timef(PITCH_FORWARD) - check_control_timef(PITCH_BACK)) / 8.0f;
 			if (kh == 0.0f) {
  				ci->pitch = 0.0f;
@@ -1069,16 +1094,18 @@ void read_keyboard_controls( control_info * ci, float frame_time, physics_info *
 				if (ci->pitch > 0.0f)
 					ci->pitch = 0.0f;
 			}
-		}
+//		}
 
 		ci->pitch += kh;
 	}
 
 	if ( !slew_active ) {
-		chase_angles_to_zero(&Viewer_slew_angles);
+		// If we're not in a view that slews (ie, not a cockpit view), make the viewer slew angles spring to the center.
+		chase_slew_angles.h = 0.0f;
+		chase_slew_angles.p = 0.0f;
 	}
 
-	player_set_padlock_state();
+	chase_angles_to_value(&Viewer_slew_angles, &chase_slew_angles, centering_speed);
 
 	if (!(Game_mode & GM_DEAD)) {
 		if ( button_info_query(&Player->bi, ONE_THIRD_THROTTLE) ) {
@@ -1206,9 +1233,7 @@ void read_keyboard_controls( control_info * ci, float frame_time, physics_info *
 		if ( !(Game_mode & GM_DEAD) )	{
 			playercontrol_read_stick(axis, frame_time);
 		} else {
-			for(int i=0; i<NUM_JOY_AXIS_ACTIONS; i++) {
-				axis[i] = 0;
-			}
+			axis[0] = axis[1] = axis[2] = axis[3] = axis[4] = 0;
 		}
 
 		ignore_pitch = FALSE;
@@ -1221,12 +1246,12 @@ void read_keyboard_controls( control_info * ci, float frame_time, physics_info *
 					ci->bank -= delta;
 					ignore_pitch = TRUE;
 				}
-			} else if ( check_control(SLIDE_WHEN_PRESSED) ) {
+/*			} else if ( check_control(SLIDE_WHEN_PRESSED) ) {
 				delta = f2fl( axis[JOY_HEADING_AXIS] );
 				if ( (delta > 0.05f) || (delta < -0.05f) ) {
 					ci->sideways += delta;
 				}
-
+*/
 			} else {
 				ci->heading += f2fl( axis[JOY_HEADING_AXIS] );
 			}
@@ -1234,27 +1259,19 @@ void read_keyboard_controls( control_info * ci, float frame_time, physics_info *
 
 		// check the pitch on the y axis
 		if (Axis_map_to[JOY_PITCH_AXIS] >= 0) {
-			if ( check_control(SLIDE_WHEN_PRESSED) ) {
+/*			if ( check_control(SLIDE_WHEN_PRESSED) ) {
 				delta = f2fl( axis[JOY_PITCH_AXIS] );
 				if ( (delta > 0.05f) || (delta < -0.05f) ) {
 					ci->vertical -= delta;
 				}
 
-			} else {
+			} else {*/
 				ci->pitch -= f2fl( axis[JOY_PITCH_AXIS] );
-			}
+//			}
 		}
 
 		if (Axis_map_to[JOY_BANK_AXIS] >= 0) {
 			ci->bank -= f2fl( axis[JOY_BANK_AXIS] ) * 1.5f;
-		}
-
-		if (Axis_map_to[JOY_SIDEWAYS_AXIS] >= 0) {
-			ci->sideways += f2fl( axis[JOY_SIDEWAYS_AXIS] );
-		}
-
-		if (Axis_map_to[JOY_VERTICAL_AXIS] >= 0) {
-			ci->vertical += f2fl( axis[JOY_VERTICAL_AXIS] );
 		}
 
 		// axis 2 is for throttle
@@ -1423,8 +1440,8 @@ void read_keyboard_controls( control_info * ci, float frame_time, physics_info *
 
 	}
 
-	if ( (Viewer_mode & VM_EXTERNAL) || slew_active ) {
-		if ( !(Viewer_mode & VM_EXTERNAL_CAMERA_LOCKED) || slew_active ) {
+	if ( (Viewer_mode & VM_EXTERNAL) /*|| slew_active*/ ) {
+		if ( !(Viewer_mode & VM_EXTERNAL_CAMERA_LOCKED) /*|| slew_active */) {
 			ci->heading=0.0f;
 			ci->pitch=0.0f;
 			ci->bank=0.0f;
@@ -1516,7 +1533,10 @@ void read_player_controls(object *objp, float frametime)
 					// Wait at least 3 seconds before making sure warp speed is set.
 					if ( Warpout_time > MINIMUM_PLAYER_WARPOUT_TIME )	{
 						// If we are going around 5% of the target speed, progress to next stage
-						float diff = fl_abs(objp->phys_info.fspeed - target_warpout_speed )/target_warpout_speed;
+						float diff = objp->phys_info.fspeed;
+						if(target_warpout_speed != 0.0f) {
+							diff = fl_abs(objp->phys_info.fspeed - target_warpout_speed )/target_warpout_speed;
+						}
 						if ( diff < TARGET_WARPOUT_MATCH_PERCENT )	{
 							gameseq_post_event( GS_EVENT_PLAYER_WARPOUT_DONE_STAGE1 );
 						}
@@ -2104,7 +2124,7 @@ int player_inspect_cap_subsys_cargo(float frametime, char *outstr)
 	}
 
 	// dont scan cargo on turrets, radar, etc.  only the majors: fighterbay, sensor, engines, weapons, nav, comm
-	if (!valid_cap_subsys_cargo_list(ship_subsys_get_name(subsys))) {
+	if (!valid_cap_subsys_cargo_list(subsys->system_info->name)) {
 		return 0;
 	}
 
@@ -2453,27 +2473,39 @@ void player_maybe_play_all_alone_msg()
 
 void player_set_padlock_state()
 {
-	// clear padlock views
-	Viewer_mode &= ~(VM_PADLOCK_ANY);
-
-	if ( check_control(PADLOCK_UP) ) {
+	if ( check_control_timef(PADLOCK_UP) ) {
+		chase_slew_angles.h = 0.0f;
+		chase_slew_angles.p = -PI_2;
 		Viewer_mode |= VM_PADLOCK_UP;
 		return;
 	}
-
-	if ( check_control(PADLOCK_DOWN) ) {
+	if ( check_control_timef(PADLOCK_DOWN) ) {
+		chase_slew_angles.h = -PI;
+		chase_slew_angles.p = 0.0f;
 		Viewer_mode |= VM_PADLOCK_REAR;
 		return;
 	}
 
-	if ( check_control(PADLOCK_RIGHT) ) {
+	if ( check_control_timef(PADLOCK_RIGHT) ) {
+		chase_slew_angles.h = PI_2;
+		chase_slew_angles.p = 0.0f;
 		Viewer_mode |= VM_PADLOCK_RIGHT;
 		return;
 	}
 
-	if ( check_control(PADLOCK_LEFT) ) {
+	if ( check_control_timef(PADLOCK_LEFT) ) {
+		chase_slew_angles.h = -PI_2;
+		chase_slew_angles.p = 0.0f;
 		Viewer_mode |= VM_PADLOCK_LEFT;
 		return;
+	}
+
+	if ( Viewer_mode & VM_PADLOCK_ANY ) {
+		// clear padlock views and center the view once 
+		// the player lets go of an orthogonal padlock command
+		Viewer_mode &= ~(VM_PADLOCK_ANY);
+		chase_slew_angles.h = 0.0f;
+		chase_slew_angles.p = 0.0f;
 	}
 }
 
@@ -2520,7 +2552,7 @@ void player_display_packlock_view()
 
 	char	str[128];
 
-	if ( !(Viewer_mode & (VM_CHASE|VM_EXTERNAL|VM_SLEWED)) ) {
+	if ( !(Viewer_mode & (VM_CHASE|VM_EXTERNAL)) ) {
 		switch (padlock_view_index) {
 		case 0:
 			strcpy(str, XSTR( "top view", 101));	break;
@@ -2681,7 +2713,10 @@ void player_get_eye(vec3d *eye_pos, matrix *eye_orient)
 
 			ship * shipp = &Ships[Player_obj->instance];
 
-			vm_vec_sub(&eye_dir, &shipp->warp_effect_pos, eye_pos);
+
+			vec3d warp_pos = Player_obj->pos;
+			shipp->warpout_effect->getWarpPosition(&warp_pos);
+			vm_vec_sub(&eye_dir, &warp_pos, eye_pos);
 			vm_vec_normalize(&eye_dir);
 			vm_vector_2_matrix(eye_orient, &eye_dir, &Player_obj->orient.vec.uvec, NULL);
 			viewer_obj = NULL;

@@ -9,25 +9,22 @@
 
 /*
  * $Logfile: /Freespace2/code/Starfield/Supernova.cpp $
- * $Revision: 2.13 $
- * $Date: 2007-09-02 19:06:02 $
+ * $Revision: 2.8.2.4 $
+ * $Date: 2007-09-02 19:05:59 $
  * $Author: Goober5000 $
  *
  * Include file for nebula stuff
  *
  * $Log: not supported by cvs2svn $
- * Revision 2.12  2007/05/14 23:13:51  Goober5000
+ * Revision 2.8.2.3  2007/05/14 23:13:43  Goober5000
  * --grouped the shake/shudder code together a bit better
  * --added a sexp to generate shudder
  * --fixed a minor bug in lock-perspective
  *
- * Revision 2.11  2007/02/20 04:20:38  Goober5000
+ * Revision 2.8.2.2  2007/02/20 04:19:42  Goober5000
  * the great big duplicate model removal commit
  *
- * Revision 2.10  2006/12/28 00:59:48  wmcoolmon
- * WMC codebase commit. See pre-commit build thread for details on changes.
- *
- * Revision 2.9  2006/08/20 00:51:06  taylor
+ * Revision 2.8.2.1  2006/08/19 04:38:47  taylor
  * maybe optimize the (PI/2), (PI*2) and (RAND_MAX/2) stuff a little bit
  *
  * Revision 2.8  2006/05/27 16:42:16  taylor
@@ -217,15 +214,13 @@ void supernova_do_particles()
 			whee.vel = norm;
 			vm_vec_scale(&whee.vel, 30.0f);						
 			vm_vec_add2(&whee.vel, &Player_obj->phys_info.vel);			
-			whee.normal = norm;
-			whee.texture_id = particle_get_fire_id();
-			particle_emit(&whee);
+			whee.normal = norm;			
+			particle_emit(&whee, PARTICLE_FIRE, 0);
 
 			vm_vec_unrotate(&b, &tb, &Player_obj->orient);
 			vm_vec_add2(&b, &Player_obj->pos);
-			whee.pos = b;
-			whee.texture_id = particle_get_fire_id();
-			particle_emit(&whee);
+			whee.pos = b;			
+			particle_emit(&whee, PARTICLE_FIRE, 0);
 		}
 	}
 }

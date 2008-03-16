@@ -1,37 +1,37 @@
-#include "parse/scripting.h"
-#include "parse/lua.h"
+#include "asteroid/asteroid.h"
+#include "camera/camera.h"
+#include "cfile/cfilesystem.h"
+#include "debris/debris.h"
+#include "cmdline/cmdline.h"
+#include "freespace2/freespace.h"
+#include "gamesequence/gamesequence.h"
 #include "graphics/2d.h"
-#include "ship/ship.h"
-#include "ship/shipfx.h"
-#include "ship/shiphit.h"
+#include "graphics/font.h"
+#include "globalincs/linklist.h"
+#include "globalincs/pstypes.h"
+#include "iff_defs/iff_defs.h"
 #include "io/key.h"
 #include "io/mouse.h"
-#include "gamesequence/gamesequence.h"
-#include "globalincs/pstypes.h"
-#include "freespace2/freespace.h"
+#include "io/timer.h"
 #include "lighting/lighting.h"
-#include "render/3dinternal.h"
-#include "cmdline/cmdline.h"
-#include "playerman/player.h"
 #include "mission/missioncampaign.h"
 #include "mission/missiongoals.h"
 #include "mission/missionload.h"
 #include "model/model.h"
-#include "freespace2/freespace.h"
-#include "weapon/weapon.h"
+#include "object/objectshield.h"
+#include "object/waypoint.h"
+#include "parse/lua.h"
 #include "parse/parselo.h"
-#include "render/3d.h"
+#include "parse/scripting.h"
 #include "particle/particle.h"
-#include "iff_defs/iff_defs.h"
-#include "camera/camera.h"
-#include "graphics/font.h"
-#include "debris/debris.h"
-#include "asteroid/asteroid.h"
+#include "playerman/player.h"
+#include "render/3d.h"
+#include "render/3dinternal.h"
+#include "ship/ship.h"
+#include "ship/shipfx.h"
+#include "ship/shiphit.h"
 #include "sound/ds.h"
-#include "cfile/cfilesystem.h"
-#include "object/waypoint/waypoint.h"
-#include "globalincs/linklist.h"
-#include "io/timer.h"
+#include "weapon/weapon.h"
 
 //*************************Lua globals*************************
 std::vector<ade_table_entry> Ade_table_entries;
@@ -3043,8 +3043,8 @@ ADE_INDEXER(l_ModelTextures, "Texture name or index", "texture", "Model textures
 		ti->texture = tdx;
 		int fps = 1;
 
-		bm_get_info(tdx, NULL, NULL, NULL, &fps, &ti->num_frames);
-		ti->anim_total_time = (float)fps * (float)ti->num_frames;
+		bm_get_info(tdx, NULL, NULL, NULL, &fps, &ti->anim.num_frames);
+		ti->anim.total_time = (float)fps * (float)ti->anim.num_frames;
 	}
 
 	if(pm->maps[idx].base_map.texture >= 0)
@@ -4829,7 +4829,8 @@ ADE_VIRTVAR(Class, l_Ship, "shipclass", "Ship class")
 	ship *shipp = &Ships[objh->objp->instance];
 
 	if(ADE_SETTING_VAR && idx > -1)
-		shipp->ship_info_index = idx;
+		change_ship_type(objh->objp->instance, idx, 1);
+		//shipp->ship_info_index = idx;
 
 	if(shipp->ship_info_index < 0)
 		return ade_set_error(L, "o", l_Shipclass.Set(-1));
@@ -5571,6 +5572,9 @@ struct sound_entry_h
 	sound_entry_h(int n_type, int n_idx){type=n_type;idx=n_idx;}
 	bool IsValid()
 	{
+		//WMC - sound stuff is under construction
+		return false;
+		/*
 		if((type < 0 || type > GS_NUM_SND_TYPES || idx < 0)
 			|| (type == GS_GAME_SND && idx >= Num_game_sounds)
 			|| (type == GS_IFACE_SND && idx >= Num_iface_sounds))
@@ -5579,6 +5583,7 @@ struct sound_entry_h
 		}
 
 		return true;
+		*/
 	}
 };
 
@@ -6531,7 +6536,7 @@ ADE_FUNC(drawSphere, l_Graphics, "[number Radius = 1.0, wvector Position]", "Tru
 	vec3d pos = vmd_zero_vector;
 	ade_get_args(L, "|fo", &rad, l_Vector.Get(&pos));
 
-	bool in_frame = g3_in_frame();
+	bool in_frame = g3_in_frame() > 0;
 	if(!in_frame)
 		g3_start_frame(0);
 
@@ -6739,7 +6744,7 @@ ADE_FUNC(drawImage, l_Graphics, "Image name/Texture handle, [x1=0, y1=0, x2, y2,
 	}
 	else
 	{
-		if(!ade_get_args(L, "o|iibiiffff", l_Texture.Get(&idx),&x1,&y1,&x2,&y2,&uv_x1,&uv_y1,&uv_x2,&uv_y2))
+		if(!ade_get_args(L, "o|iiiiffff", l_Texture.Get(&idx),&x1,&y1,&x2,&y2,&uv_x1,&uv_y1,&uv_x2,&uv_y2))
 			return ADE_RETURN_NIL;
 	}
 
@@ -6791,7 +6796,7 @@ ADE_FUNC(drawMonochromeImage, l_Graphics, "Image name/Texture handle, x1, y1, [x
 	}
 	else
 	{
-		if(!ade_get_args(L, "oii|biiiib", l_Texture.Get(&idx),&x,&y,&x2,&y2,&sx,&sy,&m))
+		if(!ade_get_args(L, "oii|iiiib", l_Texture.Get(&idx),&x,&y,&x2,&y2,&sx,&sy,&m))
 			return ADE_RETURN_NIL;
 	}
 
@@ -7900,6 +7905,17 @@ ADE_FUNC(getStack, l_Testing, NULL, "string", "Returns current Lua stack")
 	return ade_set_args(L, "s", buf);
 }
 
+ADE_FUNC(isCurrentPlayerMulti, l_Testing, NULL, "boolean", "Returns whether current player is a multiplayer pilot or not.")
+{
+	if(Player == NULL)
+		return ADE_RETURN_NIL;
+
+	if(!(Player->flags & PLAYER_FLAGS_IS_MULTI))
+		return ADE_RETURN_FALSE;
+
+	return ADE_RETURN_TRUE;
+}
+
 // *************************Helper functions*********************
 //WMC - This should be used anywhere that an 'object' is set, so
 //that scripters can get access to as much relevant data to that
@@ -8450,15 +8466,22 @@ int ade_set_args(lua_State *L, char *fmt, ...)
 				//WMC - Isn't working with HookVar for some strange reason
 				lua_pushstring(L, va_arg(vl, char*));
 				break;
+			/*
 			case 'u':
 			case 'v':
 				//WMC - Default upvalues, to reserve space for real ones
 				//* Function name
 				//* Whether function is in set mode (for virtvars), default is 0
+				//WMC - WARNING!!!
+				//WARNING!!! Making changes to any 'u' or 'v' functions must also
+				//WARNING!!! be changed in ade_table_entry::SetTable()
+				//Note that function pointers do not pass through va_args properly
+				//under 64-bit.
 				lua_pushstring(L, "<UNNAMED FUNCTION>");
 				lua_pushboolean(L, 0);
 				lua_pushcclosure(L, va_arg(vl, lua_CFunction), 2);
 				break;
+			*/
 			case 'x':
 				lua_pushnumber(L, f2fl(va_arg(vl, fix)));
 				break;
@@ -8894,8 +8917,27 @@ int ade_table_entry::SetTable(lua_State *L, int p_amt_ldx, int p_mtb_ldx)
 	if(Instanced)
 	{
 		//Set any actual data
-		char typestr[2] = {Type, '\0'};
-		if(ade_set_args(L, typestr, Value))
+		int nset = 0;
+		switch (Type)
+		{
+			//WMC - This hack by taylor is a necessary evil.
+			//64-bit function pointers do not get passed properly
+			//when using va_args for some reason.
+			case 'u':
+			case 'v':
+				lua_pushstring(L, "<UNNAMED FUNCTION>");
+				lua_pushboolean(L, 0);
+				lua_pushcclosure(L, Value.Function, 2);
+				nset++;
+				break;
+
+			default:
+				char typestr[2] = {Type, '\0'};
+				nset = ade_set_args(L, typestr, Value);
+				break;
+		}
+				
+		if (nset)
 		{
 			data_ldx = lua_gettop(L);
 		}

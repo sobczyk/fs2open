@@ -9,16 +9,13 @@
 
 /*
  * $Logfile: /Freespace2/code/Object/ObjectSort.cpp $
- * $Revision: 2.16 $
- * $Date: 2007-02-18 06:17:10 $
- * $Author: Goober5000 $
+ * $Revision: 2.14 $
+ * $Date: 2006-05-27 16:59:05 $
+ * $Author: taylor $
  *
  * Sorting code for objects.
  *
  * $Log: not supported by cvs2svn $
- * Revision 2.14  2006/05/27 16:59:05  taylor
- * comment out some code which used only if neither D3D nor OGL
- *
  * Revision 2.13  2006/05/13 07:09:25  taylor
  * minor cleanup and a couple extra error checks
  * get rid of some wasteful math from the gr_set_proj_matrix() calls
@@ -401,7 +398,7 @@ void obj_render_all(void (*render_function)(object *objp), bool *draw_viewer_las
 		//This is for ship cockpits. Bobb, feel free to optimize this any way you see fit
 		if(os->obj == Viewer_obj
 			&& os->obj->type == OBJ_SHIP
-			&& (!Viewer_mode || (Viewer_mode & VM_PADLOCK_ANY) || (Viewer_mode & VM_OTHER_SHIP))
+			&& (!Viewer_mode || (Viewer_mode & VM_PADLOCK_ANY) || (Viewer_mode & VM_OTHER_SHIP) || (Viewer_mode & VM_TRACK))
 			&& (Ship_info[Ships[os->obj->instance].ship_info_index].flags2 & SIF2_SHOW_SHIP_MODEL))
 		{
 			(*draw_viewer_last) = true;
@@ -439,7 +436,7 @@ void obj_render_all(void (*render_function)(object *objp), bool *draw_viewer_las
 
 //	if(!Cmdline_nohtl)gr_set_lighting(false,false);
 	// lasers have to be drawn without fog! - taylor
-	batch_render_all();
+	batch_render_lasers();
 
 /*	Show spheres where wingmen should be flying
 	{

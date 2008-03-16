@@ -9,8 +9,8 @@
 
 /*
  * $Logfile: /Freespace2/code/Physics/Physics.h $
- * $Revision: 2.14 $
- * $Date: 2007-04-30 21:30:30 $
+ * $Revision: 2.13.2.1 $
+ * $Date: 2007-12-28 02:10:34 $
  * $Author: Backslash $
  *
  * Clues to the meaning of life on Shivan planet Sphlighesphlaightseh
@@ -255,6 +255,7 @@ typedef struct physics_info {
 	
 	vec3d glide_saved_vel;	//WMC - the key variable for gliding. Saves the orientation that velocity will be applied on.
 	float	glide_cap;	//Backslash - for 'newtonian'-style gliding, the cap on velocity (so that something can't accelerate to ridiculous speeds... unless allowed to)
+	float	glide_multiplier;	//Backslash - for gliding with thruster adjustments, the multiplier for how quickly the thrusters change glide vector
 } physics_info;
 
 // All of these are numbers from -1.0 to 1.0 indicating

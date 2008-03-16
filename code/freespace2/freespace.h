@@ -9,8 +9,8 @@
 
 /*
  * $Logfile: /Freespace2/code/FREESPACE2/FreeSpace.h $
- * $Revision: 2.13 $
- * $Date: 2006-07-13 22:16:38 $
+ * $Revision: 2.12.2.1 $
+ * $Date: 2006-07-13 22:11:36 $
  * $Author: taylor $
  *
  * FreeSpace, the game, not the project, header information.

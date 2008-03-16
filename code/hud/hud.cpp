@@ -9,31 +9,31 @@
 
 /*
  * $Logfile: /Freespace2/code/Hud/HUD.cpp $
- * $Revision: 2.74 $
- * $Date: 2008-01-19 00:27:41 $
+ * $Revision: 2.67.2.6 $
+ * $Date: 2008-01-19 01:23:17 $
  * $Author: Goober5000 $
  *
  * C module that contains all the HUD functions at a high level
  *
  * $Log: not supported by cvs2svn $
- * Revision 2.73  2008/01/05 02:39:42  wmcoolmon
- * hud_get_draw()
+ * Revision 2.67.2.5  2008/01/19 00:27:07  Goober5000
+ * we all got led down the garden path there!  revert all radar range modifications
  *
- * Revision 2.72  2007/12/22 09:36:17  Backslash
- * Glide When Pressed key works now!
- * Also, a fix to the engine sound so that it stops playing when the throttle is at 0.  (It used to just stop looping -- but in BtRL for example the sound is 20 seconds long.)
+ * Revision 2.67.2.4  2007/12/28 02:10:37  Backslash
+ * Backslash's "let's get this stuff into 3_6_9 as well" commit.
+ * -gliding with thruster adjustments and speed cap
+ * -glide_when_pressed control (right above bank_when_pressed)
+ * -fixes to the thrusters sound and visuals while gliding
+ * -don't show muzzle flashes in 1st person
+ * -quick reticle for multitarget and asteroids
  *
- * Revision 2.71  2007/07/24 20:17:36  Kazan
+ * Revision 2.67.2.3  2007/07/24 20:08:29  Kazan
  * Make asteroid/debris fields interrupt autopilot, add "hazards near" message to autopilot.tbl, add use-nav-cinematics sexp, fix mantis #1441
  *
- * Revision 2.70  2007/04/30 21:30:29  Backslash
- * Backslash's big Gliding commit!  Gliding now obeys physics and collisions, and can be modified with thrusters.  Also has a adjustable maximum speed cap.
- * Added a simple glide indicator.  Fixed a few things involving fspeed vs speed during gliding, including maneuvering thrusters and main engine noise.
- *
- * Revision 2.69  2007/02/10 05:01:03  Goober5000
+ * Revision 2.67.2.2  2007/02/10 05:01:11  Goober5000
  * take all subsystems into account when displaying repair gauge
  *
- * Revision 2.68  2007/02/10 00:18:22  taylor
+ * Revision 2.67.2.1  2007/02/10 00:17:39  taylor
  * remove NO_SOUND
  *
  * Revision 2.67  2006/05/13 07:09:24  taylor
@@ -679,8 +679,13 @@ hud_anim	Radar_static;
 float HUD_offset_x = 0.0f;
 float HUD_offset_y = 0.0f;
 
+// the offset of the player's view vector and the ship forward vector in pixels (Swifty)
+int HUD_nose_x;
+int HUD_nose_y;
 // Global: integrity of player's target
 float Pl_target_integrity;
+
+int Hud_max_targeting_range;
 
 static int Hud_last_can_target;	// whether Player is able to target in the last frame
 static int Hud_can_target_timer;	// timestamp to allow target gauge to draw static once targeting functions are not allowed
@@ -1250,18 +1255,15 @@ void HUD_init()
 
 	if(The_mission.flags & MISSION_FLAG_FULLNEB){
 		HUD_contrast = 1;
-	} 
+	}
+
+	// reset to infinite
+	Hud_max_targeting_range = 0;
 }
 
 void hud_toggle_draw()
 {
 	HUD_draw = !HUD_draw;
-}
-
-//WMC
-int hud_get_draw()
-{
-	return HUD_draw;
 }
 
 // Goober5000
@@ -1478,7 +1480,7 @@ void hud_update_frame()
 
 }
 
-void HUD_render_forward_icon(object *objp)
+void render_offscreen_crosshair(object *objp)
 {
 	vertex	v0;
 	vec3d	p0;
@@ -1486,10 +1488,10 @@ void HUD_render_forward_icon(object *objp)
 	vm_vec_scale_add(&p0, &objp->pos, &objp->orient.vec.fvec, 100.0f);
 	g3_rotate_vertex(&v0, &p0);
 
-	gr_set_color(255, 0, 0);
-	if ((!(v0.flags & PF_OVERFLOW)) && (v0.codes == 0)) // make sure point projected
-		g3_draw_sphere(&v0, 1.25f);
-	else if (v0.codes != 0) { // target center is not on screen
+	color *use_color = &HUD_config.clr[HUD_CENTER_RETICLE];
+	gr_set_color(use_color->red, use_color->green, use_color->blue);
+
+	if (v0.codes != 0) { // target center is not on screen
 		// draw the offscreen indicator at the edge of the screen where the target is closest to
 		hud_draw_offscreen_indicator(&v0, &p0);
 	}
@@ -1519,7 +1521,7 @@ void hud_show_radar()
 	if(g3_yourself)
 		g3_start_frame(1);
 
-	if (!(Viewer_mode & (VM_EXTERNAL | VM_SLEWED | /*VM_CHASE |*/ VM_DEAD_VIEW | VM_WARP_CHASE | VM_PADLOCK_ANY ))) {
+	if (!(Viewer_mode & (VM_EXTERNAL | VM_DEAD_VIEW | VM_WARP_CHASE | VM_PADLOCK_ANY ))) {
 		if ( Game_detail_flags & DETAIL_FLAG_HUD )	{
 			if ( hud_gauge_active(HUD_RADAR) ) {
 				HUD_reset_clip();
@@ -1545,7 +1547,7 @@ void hud_show_target_model()
 	// display the miniature model of the target in the target box and shade
 	// RT Might be faster to use full detail model
 	if ( Game_detail_flags & DETAIL_FLAG_HUD )	{
-		if (!(Viewer_mode & (VM_EXTERNAL | VM_SLEWED | /*VM_CHASE |*/ VM_DEAD_VIEW | VM_WARP_CHASE | VM_PADLOCK_ANY)))
+		if (!(Viewer_mode & (VM_EXTERNAL | VM_DEAD_VIEW | VM_WARP_CHASE | VM_PADLOCK_ANY)))
 			hud_render_target_model();
 	}
 }
@@ -1588,7 +1590,7 @@ void HUD_render_3d(float frametime)
 		return;
 	}
 
-	if (!(Viewer_mode & (VM_EXTERNAL | VM_SLEWED |/* VM_CHASE |*/ VM_DEAD_VIEW | VM_WARP_CHASE | VM_PADLOCK_ANY))) {
+	if (!(Viewer_mode & (VM_EXTERNAL | VM_DEAD_VIEW | VM_WARP_CHASE | VM_PADLOCK_ANY))) {
 
 		hud_show_common_3d_gauges(frametime, 1);
 
@@ -1596,6 +1598,9 @@ void HUD_render_3d(float frametime)
 		//	Currently not supporting a way to toggle this as I'm not sure we'll stick wtih this gauge. -- MK, 3/17/97.
 		if ( hud_gauge_active(HUD_MISSILE_WARNING_ARROW) && !hud_disabled_except_messages() ) {
 			hud_show_homing_missiles();
+		}
+		if ( !(Viewer_mode & VM_OTHER_SHIP) ) { // Added to prevent the offscreen crosshair indicator from drawing when viewing other ships (Swifty)
+			render_offscreen_crosshair(Player_obj); // If the gun sight is not on screen, draw offscreen indicator
 		}
 
 	} else if ( Viewer_mode & (/*VM_CHASE |*/ VM_EXTERNAL | VM_WARP_CHASE | VM_PADLOCK_ANY ) ) {
@@ -1607,11 +1612,6 @@ void HUD_render_3d(float frametime)
 
 		hud_show_common_3d_gauges(frametime, 0);
 	}
-
-	if (Viewer_mode & VM_SLEWED) {
-		HUD_render_forward_icon(Player_obj);
-	}
-
 }
 
 
@@ -1822,7 +1822,7 @@ void HUD_render_2d(float frametime)
 	// Goober5000 - special case... hud is off, but we're still displaying messages
 	if ( hud_disabled_except_messages() )
 	{
-		if (!(Viewer_mode & (VM_EXTERNAL | VM_SLEWED |/* VM_CHASE |*/ VM_DEAD_VIEW | VM_WARP_CHASE | VM_PADLOCK_ANY ))) {
+		if (!(Viewer_mode & (VM_EXTERNAL | VM_DEAD_VIEW | VM_WARP_CHASE | VM_PADLOCK_ANY ))) {
 			// draw a border around a talking head if it is playing
 			hud_maybe_blit_head_border();
 
@@ -1905,7 +1905,7 @@ void HUD_render_2d(float frametime)
 	}
 #endif
 
-	if (!(Viewer_mode & (VM_EXTERNAL | VM_SLEWED |/* VM_CHASE |*/ VM_DEAD_VIEW | VM_WARP_CHASE | VM_PADLOCK_ANY )))
+	if (!(Viewer_mode & (VM_EXTERNAL | VM_DEAD_VIEW | VM_WARP_CHASE | VM_PADLOCK_ANY )))
 	{
 		// display Energy Transfer System gauges
 		if ( hud_gauge_active(HUD_ETS_GAUGE) ) {
@@ -2530,11 +2530,11 @@ void hud_show_text_flash_icon(char *txt, int y, int bright)
 	gr_get_string_size(&w, &h, txt);
 
 	// draw the box	
-	gr_rect( (int)((((float)gr_screen.max_w_unscaled / 2.0f) - ((float)w / 2.0f)) - 1.0f), (int)((float)y - 1.0f), w + 2, h + 1);
+	gr_rect( (int)((((float)gr_screen.max_w_unscaled / 2.0f) - ((float)w / 2.0f)) - 1.0f)+ HUD_nose_x, (int)((float)y - 1.0f)+HUD_nose_y, w + 2, h + 1);
 
 	// string
 	hud_set_gauge_color(HUD_TEXT_FLASH, HUD_C_BRIGHT);	
-	gr_string(fl2i((gr_screen.max_w_unscaled - w) / 2.0f), y, txt);
+	gr_string(fl2i((gr_screen.max_w_unscaled - w) / 2.0f) + HUD_nose_x, y + HUD_nose_y, txt);
 
 	// go back to normal font
 	gr_set_font(FONT1);
@@ -3484,7 +3484,7 @@ void hud_maybe_render_multi_text()
 }
 
 // set the offset values for this render frame
-void HUD_set_offsets(object *viewer_obj, int wiggedy_wack)
+void HUD_set_offsets(object *viewer_obj, int wiggedy_wack, matrix *eye_orient)
 {
 	if ( (viewer_obj == Player_obj) && wiggedy_wack ){		
 		vec3d tmp;
@@ -3494,20 +3494,15 @@ void HUD_set_offsets(object *viewer_obj, int wiggedy_wack)
 		HUD_offset_x = 0.0f;
 		HUD_offset_y = 0.0f;
 
-		vm_vec_scale_add( &tmp, &Eye_position, &Viewer_obj->orient.vec.fvec, 100.0f );
+		vm_vec_scale_add( &tmp, &Eye_position, &eye_orient->vec.fvec, 100.0f );
 		
 		flags = g3_rotate_vertex(&pt,&tmp);
 
-		if (flags == 0) {
+		g3_project_vertex(&pt); 
 
-			g3_project_vertex(&pt);
-
-			if (!(pt.flags & PF_OVERFLOW))	{
-				gr_unsize_screen_posf( &pt.sx, &pt.sy );
-				HUD_offset_x -= 0.45f * (i2fl(gr_screen.clip_width_unscaled)*0.5f - pt.sx);
-				HUD_offset_y -= 0.45f * (i2fl(gr_screen.clip_height_unscaled)*0.5f - pt.sy);
-			}
-		}
+		gr_unsize_screen_posf( &pt.sx, &pt.sy );
+		HUD_offset_x -= 0.45f * (i2fl(gr_screen.clip_width_unscaled)*0.5f - pt.sx);
+		HUD_offset_y -= 0.45f * (i2fl(gr_screen.clip_height_unscaled)*0.5f - pt.sy);
 
 		if ( HUD_offset_x > 100.0f )	{
 			HUD_offset_x = 100.0f;
@@ -3525,6 +3520,50 @@ void HUD_set_offsets(object *viewer_obj, int wiggedy_wack)
 		HUD_offset_x = 0.0f;
 		HUD_offset_y = 0.0f;
 	}
+
+	// Since the player's view vector may be different from the ship's forward vector, 
+	// we calculate the offset of those two in pixels and store the x and y offsets in 
+	// variables HUD_nose_x and HUD_nose_y (Swifty)
+	if ( Viewer_mode & VM_TOPDOWN ) {
+		HUD_nose_x = 0;
+		HUD_nose_y = 0;
+	} else {
+		HUD_get_nose_coordinates(&HUD_nose_x, &HUD_nose_y);
+	}
+}
+// Function returns the offset between the player's view vector and the forward vector of the ship in pixels
+// (Swifty)
+void HUD_get_nose_coordinates(int *x, int *y)
+{
+	vertex	v0;
+	vec3d	p0;
+
+	int x_nose;
+	int y_nose;
+	
+	vm_vec_scale_add(&p0, &Player_obj->pos, &Player_obj->orient.vec.fvec, 100.0f);
+	g3_rotate_vertex(&v0, &p0);
+
+	if (v0.codes == 0) {
+		g3_project_vertex(&v0);
+
+		if (! (v0.codes & PF_OVERFLOW)) {
+			x_nose = fl2i(v0.sx);
+			y_nose = fl2i(v0.sy);
+		}
+	} else {
+		// Means that the ship forward vector is not going through the frame buffer.
+		// We're assigning a high negative value so that the the bitmaps will be drawn offscreen so that
+		// we can give the illusion that the player is looking away from the slewable HUD reticle.
+		*x = -100000;
+		*y = -100000;
+		return;
+	}
+
+	*x = x_nose - SCREEN_CENTER_X;
+	*y = y_nose - SCREEN_CENTER_Y;
+
+	return;
 }
 
 // Basically like gr_reset_clip only it accounts for hud jittering
