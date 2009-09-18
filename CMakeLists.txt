@@ -1,0 +1,42 @@
+cmake_minimum_required(VERSION 2.6)
+
+PROJECT( fsopen )
+
+IF( NOT CMAKE_BUILD_TYPE )
+	SET( CMAKE_BUILD_TYPE "Release" )
+ENDIF()
+
+IF( NOT CPACK_GENERATOR )
+	SET( CPACK_GENERATOR "DEB")
+ENDIF()
+
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-write-strings")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-invalid-offsetof -Wno-write-strings")
+SET(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/build)
+#SET(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR}/build)
+
+FIND_PACKAGE(SDL REQUIRED)
+FIND_PACKAGE(OpenAL REQUIRED)
+FIND_PACKAGE(JPEG REQUIRED)
+
+IF(UNIX)
+	MESSAGE( "UNIX build" )
+	ADD_DEFINITIONS(-DSCP_UNIX)
+	ADD_DEFINITIONS(-DUSE_OPENAL)
+ENDIF(UNIX)
+IF(WIN32)
+	MESSAGE( "WIN 32 build" )
+	ADD_DEFINITIONS(-D_WIN32)
+ENDIF(WIN32)
+
+SUBDIRS(lua)
+SUBDIRS(code)
+
+MESSAGE( STATUS )
+MESSAGE( STATUS "-------------------------------------------------------------------------------" )
+MESSAGE( STATUS "CMAKE_INSTALL_PREFIX = ${CMAKE_INSTALL_PREFIX}" )
+MESSAGE( STATUS "CMAKE_BUILD_TYPE = ${CMAKE_BUILD_TYPE}" )
+MESSAGE( STATUS "Change a value with: cmake -D<Variable>=<Value>" )
+MESSAGE( STATUS "Package CPACK_GENERATOR=${CPACK_GENERATOR}" )
+MESSAGE( STATUS "-------------------------------------------------------------------------------" )
+MESSAGE( STATUS )

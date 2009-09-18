@@ -1,0 +1,421 @@
+SET(fsopen_INC
+	${CMAKE_CURRENT_BINARY_DIR}
+# 	${CMAKE_CURRENT_BINARY_DIR}/ai
+# 	${CMAKE_CURRENT_BINARY_DIR}/anim
+# 	${CMAKE_CURRENT_BINARY_DIR}/asteroid
+# 	${CMAKE_CURRENT_BINARY_DIR}/autopilot
+# 	${CMAKE_CURRENT_BINARY_DIR}/bmpman
+# 	${CMAKE_CURRENT_BINARY_DIR}/camera
+# 	${CMAKE_CURRENT_BINARY_DIR}/cfile
+# 	${CMAKE_CURRENT_BINARY_DIR}/cmdline
+# 	${CMAKE_CURRENT_BINARY_DIR}/cmeasure
+# 	${CMAKE_CURRENT_BINARY_DIR}/controlconfig
+# 	${CMAKE_CURRENT_BINARY_DIR}/cutscene
+# 	${CMAKE_CURRENT_BINARY_DIR}/ddsutils
+# 	${CMAKE_CURRENT_BINARY_DIR}/debris
+# 	${CMAKE_CURRENT_BINARY_DIR}/debugconsole
+# 	${CMAKE_CURRENT_BINARY_DIR}/decals
+# 	${CMAKE_CURRENT_BINARY_DIR}/demo
+# 	${CMAKE_CURRENT_BINARY_DIR}/exceptionhandler
+# 	${CMAKE_CURRENT_BINARY_DIR}/fireball
+# 	${CMAKE_CURRENT_BINARY_DIR}/fs2netd
+# 	${CMAKE_CURRENT_BINARY_DIR}/gamehelp
+# 	${CMAKE_CURRENT_BINARY_DIR}/gamesequence
+# 	${CMAKE_CURRENT_BINARY_DIR}/globalincs
+# 	${CMAKE_CURRENT_BINARY_DIR}/graphics
+# 	${CMAKE_CURRENT_BINARY_DIR}/hud
+# 	${CMAKE_CURRENT_BINARY_DIR}/iff_defs
+# 	${CMAKE_CURRENT_BINARY_DIR}/inetfile
+# 	${CMAKE_CURRENT_BINARY_DIR}/io
+# 	${CMAKE_CURRENT_BINARY_DIR}/jpgutils
+# 	${CMAKE_CURRENT_BINARY_DIR}/jumpnode
+# 	${CMAKE_CURRENT_BINARY_DIR}/lab
+# 	${CMAKE_CURRENT_BINARY_DIR}/lighting
+# 	${CMAKE_CURRENT_BINARY_DIR}/localization
+# 	${CMAKE_CURRENT_BINARY_DIR}/math
+# 	${CMAKE_CURRENT_BINARY_DIR}/menuui
+# 	${CMAKE_CURRENT_BINARY_DIR}/mission
+# 	${CMAKE_CURRENT_BINARY_DIR}/missionui
+# 	${CMAKE_CURRENT_BINARY_DIR}/model
+# 	${CMAKE_CURRENT_BINARY_DIR}/nebula
+# 	${CMAKE_CURRENT_BINARY_DIR}/network
+# 	${CMAKE_CURRENT_BINARY_DIR}/object
+# 	${CMAKE_CURRENT_BINARY_DIR}/observer
+# 	${CMAKE_CURRENT_BINARY_DIR}/palman
+# 	${CMAKE_CURRENT_BINARY_DIR}/parse
+# 	${CMAKE_CURRENT_BINARY_DIR}/particle
+# 	${CMAKE_CURRENT_BINARY_DIR}/pcxutils
+# 	${CMAKE_CURRENT_BINARY_DIR}/physics
+# 	${CMAKE_CURRENT_BINARY_DIR}/playerman
+# 	${CMAKE_CURRENT_BINARY_DIR}/popup
+# 	${CMAKE_CURRENT_BINARY_DIR}/radar
+# 	${CMAKE_CURRENT_BINARY_DIR}/render
+# 	${CMAKE_CURRENT_BINARY_DIR}/ship
+# 	${CMAKE_CURRENT_BINARY_DIR}/species_defs
+# 	${CMAKE_CURRENT_BINARY_DIR}/starfield
+# 	${CMAKE_CURRENT_BINARY_DIR}/stats
+# 	${CMAKE_CURRENT_BINARY_DIR}/tgautils
+# 	${CMAKE_CURRENT_BINARY_DIR}/ui
+# 	${CMAKE_CURRENT_BINARY_DIR}/weapon
+)
+
+SET(fsopen_SRCS
+	ai/ai.cpp
+	ai/aibig.cpp
+	ai/aicode.cpp
+	ai/aigoals.cpp
+	ai/aiturret.cpp
+	ai/ai_profiles.cpp
+	anim/animplay.cpp
+	anim/packunpack.cpp
+	asteroid/asteroid.cpp
+	autopilot/autopilot.cpp
+	bmpman/bmpman.cpp
+	camera/camera.cpp
+	cfile/cfile.cpp
+	cfile/cfilearchive.cpp
+	cfile/cfilelist.cpp
+	cfile/cfilesystem.cpp
+	cmdline/cmdline.cpp
+	cmeasure/cmeasure.cpp
+	controlconfig/controlsconfig.cpp
+	controlconfig/controlsconfigcommon.cpp
+	cutscene/cutscenes.cpp
+	cutscene/decoder16.cpp
+	cutscene/decoder8.cpp
+	cutscene/movie.cpp
+	cutscene/mve_audio.cpp
+	cutscene/mvelib.cpp
+	cutscene/mveplayer.cpp
+	cutscene/oggplayer.cpp
+	ddsutils/ddsutils.cpp
+	debris/debris.cpp
+	debugconsole/console.cpp
+	debugconsole/timerbar.cpp
+	decals/decals.cpp
+	demo/demo.cpp
+	exceptionhandler/exceptionhandler.cpp
+	fireball/fireballs.cpp
+	fireball/warpineffect.cpp
+	fs2netd/fs2netd_client.cpp
+	fs2netd/tcp_client.cpp
+	fs2netd/tcp_socket.cpp
+	gamehelp/contexthelp.cpp
+	gamehelp/gameplayhelp.cpp
+	gamesequence/gamesequence.cpp
+	globalincs/alphacolors.cpp
+	globalincs/crypt.cpp
+	globalincs/def_files.cpp
+	globalincs/safe_strings.cpp
+	globalincs/safe_strings_test.cpp
+	globalincs/systemvars.cpp
+	globalincs/version.cpp
+	graphics/2d.cpp
+	graphics/font.cpp
+	graphics/generic.cpp
+	graphics/grbatch.cpp
+	graphics/gropengl.cpp
+	graphics/gropenglbmpman.cpp
+	graphics/gropengldraw.cpp
+	graphics/gropenglextension.cpp
+	graphics/gropengllight.cpp
+	graphics/gropenglshader.cpp
+	graphics/gropenglstate.cpp
+	graphics/gropengltexture.cpp
+	graphics/gropengltnl.cpp
+	graphics/grstub.cpp
+	hud/hud.cpp
+	hud/hudartillery.cpp
+	hud/hudbrackets.cpp
+	hud/hudconfig.cpp
+	hud/hudescort.cpp
+	hud/hudets.cpp
+	hud/hudlock.cpp
+	hud/hudmessage.cpp
+	hud/hudnavigation.cpp
+	hud/hudobserver.cpp
+	hud/hudparse.cpp
+	hud/hudreticle.cpp
+	hud/hudshield.cpp
+	hud/hudsquadmsg.cpp
+	hud/hudtarget.cpp
+	hud/hudtargetbox.cpp
+	hud/hudwingmanstatus.cpp
+	iff_defs/iff_defs.cpp
+	inetfile/cftp.cpp
+	inetfile/chttpget.cpp
+	inetfile/inetgetfile.cpp
+	io/key.cpp
+	io/keycontrol.cpp
+	io/mouse.cpp
+	io/timer.cpp
+	io/trackir.cpp
+	jpgutils/jpgutils.cpp
+	jumpnode/jumpnode.cpp
+	lab/lab.cpp
+	lab/wmcgui.cpp
+	lighting/lighting.cpp
+	localization/fhash.cpp
+	localization/localize.cpp
+	math/fix.cpp
+	math/floating.cpp
+	math/fvi.cpp
+	math/spline.cpp
+	math/staticrand.cpp
+	math/vecmat.cpp
+	menuui/barracks.cpp
+	menuui/credits.cpp
+	menuui/fishtank.cpp
+	menuui/mainhallmenu.cpp
+	menuui/mainhalltemp.cpp
+	menuui/optionsmenu.cpp
+	menuui/optionsmenumulti.cpp
+	menuui/playermenu.cpp
+	menuui/readyroom.cpp
+	menuui/snazzyui.cpp
+	menuui/techmenu.cpp
+	menuui/trainingmenu.cpp
+	mission/missionbriefcommon.cpp
+	mission/missioncampaign.cpp
+	mission/missiongoals.cpp
+	mission/missiongrid.cpp
+	mission/missionhotkey.cpp
+	mission/missionload.cpp
+	mission/missionlog.cpp
+	mission/missionmessage.cpp
+	mission/missionparse.cpp
+	mission/missiontraining.cpp
+	missionui/chatbox.cpp
+	missionui/fictionviewer.cpp
+	missionui/missionbrief.cpp
+	missionui/missioncmdbrief.cpp
+	missionui/missiondebrief.cpp
+	missionui/missionloopbrief.cpp
+	missionui/missionpause.cpp
+	missionui/missionrecommend.cpp
+	missionui/missionscreencommon.cpp
+	missionui/missionshipchoice.cpp
+	missionui/missionstats.cpp
+	missionui/missionweaponchoice.cpp
+	missionui/redalert.cpp
+	model/modelanim.cpp
+	model/modelcollide.cpp
+	model/modelinterp.cpp
+	model/modeloctant.cpp
+	model/modelread.cpp
+	nebula/neb.cpp
+	nebula/neblightning.cpp
+	network/chat_api.cpp
+	network/multi.cpp
+	network/multilag.cpp
+	network/multimsgs.cpp
+	network/multiteamselect.cpp
+	network/multiui.cpp
+	network/multiutil.cpp
+	network/multi_campaign.cpp
+	network/multi_data.cpp
+	network/multi_dogfight.cpp
+	network/multi_endgame.cpp
+	network/multi_ingame.cpp
+	network/multi_kick.cpp
+	network/multi_log.cpp
+	network/multi_obj.cpp
+	network/multi_observer.cpp
+	network/multi_options.cpp
+	network/multi_pause.cpp
+	network/multi_pinfo.cpp
+	network/multi_ping.cpp
+	network/multi_pmsg.cpp
+	network/multi_pxo.cpp
+	network/multi_rate.cpp
+	network/multi_respawn.cpp
+	network/multi_sexp.cpp
+	network/multi_team.cpp
+	network/multi_voice.cpp
+	network/multi_xfer.cpp
+	network/psnet.cpp
+	network/psnet2.cpp
+	network/stand_gui.cpp
+	network/stand_gui-unix.cpp
+	object/collidedebrisship.cpp
+	object/collidedebrisweapon.cpp
+	object/collideshipship.cpp
+	object/collideshipweapon.cpp
+	object/collideweaponweapon.cpp
+	object/deadobjectdock.cpp
+	object/objcollide.cpp
+	object/objectdock.cpp
+	object/object.cpp
+	object/objectshield.cpp
+	object/objectsort.cpp
+	object/parseobjectdock.cpp
+	object/waypoint.cpp
+	observer/observer.cpp
+	palman/palman.cpp
+	parse/encrypt.cpp
+	parse/lua.cpp
+	parse/parselo.cpp
+	parse/scripting.cpp
+	parse/sexp.cpp
+	particle/particle.cpp
+	pcxutils/pcxutils.cpp
+	physics/physics.cpp
+	playerman/managepilot.cpp
+	playerman/playercontrol.cpp
+	popup/popup.cpp
+	popup/popupdead.cpp
+	radar/radar.cpp
+	radar/radarorb.cpp
+	radar/radarsetup.cpp
+	render/3dclipper.cpp
+	render/3ddraw.cpp
+	render/3dlaser.cpp
+	render/3dmath.cpp
+	render/3dsetup.cpp
+	ship/afterburner.cpp
+	ship/awacs.cpp
+	ship/shield.cpp
+	ship/ship.cpp
+	ship/shipcontrails.cpp
+	ship/shipfx.cpp
+	ship/shiphit.cpp
+	species_defs/species_defs.cpp
+	starfield/nebula.cpp
+	starfield/starfield.cpp
+	starfield/supernova.cpp
+	stats/medals.cpp
+	stats/scoring.cpp
+	stats/stats.cpp
+	tgautils/tgautils.cpp
+	ui/button.cpp
+	ui/checkbox.cpp
+	ui/gadget.cpp
+	ui/icon.cpp
+	ui/inputbox.cpp
+	ui/keytrap.cpp
+	ui/listbox.cpp
+	ui/radio.cpp
+	ui/scroll.cpp
+	ui/slider.cpp
+	ui/slider2.cpp
+	ui/uidraw.cpp
+	ui/uimouse.cpp
+	ui/window.cpp
+	weapon/beam.cpp
+	weapon/corkscrew.cpp
+	weapon/emp.cpp
+	weapon/flak.cpp
+	weapon/muzzleflash.cpp
+	weapon/shockwave.cpp
+	weapon/swarm.cpp
+	weapon/trails.cpp
+	weapon/weapons.cpp
+)
+
+if(WIN32)
+SET(fsopen_SRCS
+	${fsopen_SRCS}
+	io/joy.cpp
+	io/joy_ff.cpp
+	io/sw_error.hpp
+	io/sw_guid.hpp
+	io/swff_lib.cpp
+)
+endif(WIN32)
+
+if(UNIX)
+SET(fsopen_SRCS
+	${fsopen_SRCS}
+	io/joy-unix.cpp
+)
+endif(UNIX)
+
+## sound support sources
+#if(FS2_SOUND)
+SET(fsopen_SRCS
+	${fsopen_SRCS}
+	gamesnd/eventmusic.cpp
+	gamesnd/gamesnd.cpp
+	object/objectsnd.cpp
+	sound/ogg/ogg.cpp
+	sound/audiostr-openal.cpp
+	sound/audiostr.cpp
+	sound/acm-openal.cpp
+	sound/acm.cpp
+	sound/ds.cpp
+	sound/ds3d.cpp
+	sound/dscap.cpp
+	sound/midifile.cpp
+	sound/rbaudio.cpp
+	sound/rtvoice.cpp
+	sound/sound.cpp
+	sound/winmidi.cpp
+	sound/winmidi_base.cpp
+	vcodec/codec1.cpp
+	sound/fsspeech.cpp
+	sound/speech.cpp
+	sound/voicerec.cpp
+sound/ogg/ogg.h
+)
+# SET(fsopen_INC
+# 	${fsopen_INC}
+# 	${CMAKE_CURRENT_BINARY_DIR}/gamesnd
+# 	${CMAKE_CURRENT_BINARY_DIR}/sound
+# 	${CMAKE_CURRENT_BINARY_DIR}/sound/ogg
+# 	${CMAKE_CURRENT_BINARY_DIR}/vcodec
+# 	${CMAKE_CURRENT_BINARY_DIR}/endif
+# )
+#endif(FS2_SOUND)
+
+## Win32-specific sources
+if(WIN32)
+SET(fsopen_SRCS
+	${fsopen_SRCS}
+	globalincs/windebug.cpp
+	osapi/osapi.cpp
+	osapi/osregistry.cpp
+	osapi/outwnd.cpp
+)
+SET(fsopen_INC
+	${fsopen_INC}
+	${CMAKE_CURRENT_BINARY_DIR}/directx
+	${CMAKE_CURRENT_BINARY_DIR}/graphics/gl
+	${CMAKE_CURRENT_BINARY_DIR}/osapi
+)
+endif(WIN32)
+
+## Unix-specific sources
+if(UNIX)
+SET(fsopen_SRCS
+	${fsopen_SRCS}
+	osapi/osapi_unix.cpp
+	osapi/osregistry_unix.cpp
+	osapi/outwnd_unix.cpp
+	windows_stub/stubs.cpp
+)
+SET(fsopen_INC
+	${fsopen_INC}
+	${CMAKE_CURRENT_BINARY_DIR}/windows_stub
+	${CMAKE_CURRENT_BINARY_DIR}/osapi
+)
+endif(UNIX)
+
+SET(fsopen_BinSRC
+	freespace2/freespace.cpp
+	freespace2/levelpaging.cpp
+)
+
+SET(fsopen_INC
+	${fsopen_INC}
+	${CMAKE_CURRENT_BINARY_DIR}/freespace2
+)
+
+INCLUDE_DIRECTORIES(
+	${fsopen_INC}
+	${SDL_INCLUDE_DIR}
+	${OPENAL_INCLUDE_DIR}
+)
+
+ADD_LIBRARY(code STATIC ${fsopen_SRCS})
+ADD_EXECUTABLE(fs2_open_r ${fsopen_BinSRC})
+TARGET_LINK_LIBRARIES(fs2_open_r code lua "vorbisfile" "vorbis" "m" "theora" "ogg" ${SDL_LIBRARY} ${OPENAL_LIBRARY} ${JPEG_LIBRARY})
