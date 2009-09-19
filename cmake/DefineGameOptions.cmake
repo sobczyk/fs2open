@@ -1,0 +1,15 @@
+OPTION(NO_SOUND "Turn off sound support" ON)
+OPTION(INF_BUILD "" OFF)
+OPTION(SCP_LITE "" OFF)
+OPTION(FS2_DEMO "Build demo" OFF)
+OPTION(SPEECH "Build speech recognition (Windows only)" ON)
+IF(WIN32)
+	OPTION(JPEG_STATIC "Build statically with the included jpeg library" ON)
+ELSEIF(WIN32)
+	OPTION(JPEG_STATIC "Build statically with the included jpeg library" OFF)
+ENDIF(WIN32)
+
+
+IF(NOT WIN32)
+	SET(SPEECH OFF)
+ENDIF(NOT WIN32)

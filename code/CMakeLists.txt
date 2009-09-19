@@ -1,5 +1,5 @@
 SET(fsopen_INC
-	${CMAKE_CURRENT_BINARY_DIR}
+	${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 SET(fsopen_SRCS
@@ -255,7 +255,7 @@ SET(fsopen_SRCS
 	weapon/weapons.cpp
 )
 
-if(WIN32)
+IF(WIN32)
 SET(fsopen_SRCS
 	${fsopen_SRCS}
 	io/joy.cpp
@@ -264,17 +264,20 @@ SET(fsopen_SRCS
 	io/sw_guid.hpp
 	io/swff_lib.cpp
 )
-endif(WIN32)
+ENDIF(WIN32)
 
-if(UNIX)
+IF(UNIX)
 SET(fsopen_SRCS
 	${fsopen_SRCS}
 	io/joy-unix.cpp
 )
-endif(UNIX)
+ENDIF(UNIX)
 
 ## sound support sources
-#if(FS2_SOUND)
+IF(NO_SOUND)
+	ADD_DEFINITIONS(-DNO_SOUND)
+ELSE(NO_SOUND)
+ADD_DEFINITIONS(-DUSE_OPENAL)
 SET(fsopen_SRCS
 	${fsopen_SRCS}
 	gamesnd/eventmusic.cpp
@@ -298,20 +301,12 @@ SET(fsopen_SRCS
 	sound/fsspeech.cpp
 	sound/speech.cpp
 	sound/voicerec.cpp
-sound/ogg/ogg.h
+	sound/ogg/ogg.h
 )
-# SET(fsopen_INC
-# 	${fsopen_INC}
-# 	${CMAKE_CURRENT_BINARY_DIR}/gamesnd
-# 	${CMAKE_CURRENT_BINARY_DIR}/sound
-# 	${CMAKE_CURRENT_BINARY_DIR}/sound/ogg
-# 	${CMAKE_CURRENT_BINARY_DIR}/vcodec
-# 	${CMAKE_CURRENT_BINARY_DIR}/endif
-# )
-#endif(FS2_SOUND)
+ENDIF(NO_SOUND)
 
 ## Win32-specific sources
-if(WIN32)
+IF(WIN32)
 SET(fsopen_SRCS
 	${fsopen_SRCS}
 	globalincs/windebug.cpp
@@ -325,10 +320,10 @@ SET(fsopen_INC
 	${CMAKE_CURRENT_BINARY_DIR}/graphics/gl
 	${CMAKE_CURRENT_BINARY_DIR}/osapi
 )
-endif(WIN32)
+ENDIF(WIN32)
 
 ## Unix-specific sources
-if(UNIX)
+IF(UNIX)
 SET(fsopen_SRCS
 	${fsopen_SRCS}
 	osapi/osapi_unix.cpp
@@ -341,7 +336,7 @@ SET(fsopen_INC
 	${CMAKE_CURRENT_BINARY_DIR}/windows_stub
 	${CMAKE_CURRENT_BINARY_DIR}/osapi
 )
-endif(UNIX)
+ENDIF(UNIX)
 
 SET(fsopen_BinSRC
 	freespace2/freespace.cpp
